@@ -1,5 +1,13 @@
 # STM32学习笔记
 
+## 前言
+
+stm32是一个很有用的微控制器，在各种本科竞赛或者项目中可以说是最主流的一种设备了，但是现在网上32相关的课程很多，同学们可能都不知道如何学习，所幸江科大的某位大佬自制了51和32的教程，算得上是B站最浅显易懂的教程了，本人笔记是根据另一位同学的开源笔记改编（这个同学也是看的江科大视频自制），同时融合了一些其他的，作为开源分享给大家
+
+本人笔记的GitHub仓库如下
+
+https://github.com/Michael-Jetson/STM32_Note
+
 ## STM32是什么
 
 STM32是ST公司基于ARM Cortex-M内核开发的32位微控制器，类似于Intel和AMD公司设计并且产出芯片，然后各个电脑公司拿芯片去设计外围电路并且组装电脑
@@ -13,6 +21,12 @@ ARM既指ARM公司，也指ARM处理器内核ARM公司是全球领先的半导�
 一块32开发板，类比成大家熟知的台式电脑，那么实际上内核就是CPU，存储器就是内存和硬盘，外设就是显示器、键盘等
 
 ### 32的系统架构
+
+
+
+## 新建工程方式总结
+
+我们在使用32单片机的时候需要对其进行编程，过程比大家学过的C/C++编程方法复杂一些
 
 ## GPIO
 
@@ -46,7 +60,9 @@ GPIO外设的命名是GPIO+A/B/C这种，然后一个GPIO外设有16个引脚，
 
 可以分为两个部分，一个是输入驱动器部分（包含相关电路），可以实现读取功能；一个是输出驱动器部分，可以实现信号的输出
 
-我们接下来进行解析
+#### GPIO原理
+
+我们接下来进行解析工作原理
 
 一、IO引脚
 
@@ -82,48 +98,97 @@ GPIO外设的命名是GPIO+A/B/C这种，然后一个GPIO外设有16个引脚，
 
 - 输出驱动器有两路信号来源，一路其中复用功能输出是来自于其他外设的，一路是来自于输出数据寄存器的，两种控制方式由数据选择器进行控制，选择一路到输出控制部分
 - 如果选择输出数据寄存器进行控制，就是普通的IO口输出，对输出数据寄存器进行写入就可以对对应端口进行操作，但是注意，输出数据寄存器只能整体写入，如果想对单独操作输出数据寄存器某一位而不影响其他位，就需要借助位设置/清除寄存器，可以实现单独操作输出数据寄存器的某一位
+- 如果直接使用读/写操作对输出数据寄存器进行操作，那么会相当麻烦，如果想单独控制其中某一个端口而不影响其他端口，必须这样操作
+  1. 首先，读取寄存器，使用按位与或者按位或的方式单独改变其中某一位
+  2. 然后将修改后的数据发送给寄存器
+- 或者使用位设置/清楚寄存器，使用方法如下
+  1. 如果要对某一位进行置1（输出高电平），则在位设置寄存器对应位写1，其他位置0即可（保持不变），这样内部电路就会自动将输出数据寄存器对应位置1而不改变其他位，一步到位
+  2. 如果想对某一位清除（输出低电平），则对位清楚寄存器操作即可
 
-通过配置GPIO的端口配置寄存器，端口可以配置成以下8种模式
+五、输出驱动器
 
-浮空输入：可读取引脚电平，若引脚悬空，则电平不确定
+- 我们使用信号来控制开关的导通和关闭，开关负责将IO口接到VDD或者VSS，这样IO口就可以输出高低电平
 
-上拉输入：可读取引脚电平，内部连接上拉电阻，悬空时默认高电平
+- 有三种输出方式：推挽输出，开漏输出，关闭
 
-下拉输入：可读取引脚电平，内部连接下拉电阻，悬空时默认低电平
+  1. 推挽输出![image-20230410143846371](/home/robot/下载/32/img/image-20230410143846371.png)
 
-模拟输入：GPIO无效，引脚直接接入内部ADC
+     这种模式下，P-MOS和N-MOS均有效
 
-开漏输出：可输出引脚电平，高电平为高阻态，低电平接VSS
+     输出1时，上管导通，下管断开，输出直接接到VDD，输出高电平
 
-推挽输出：可输出引脚电平，高电平接VDD，低电平接VSS
+     输出0时，上管断开，下管断开，输出直接接到VSS，输出低电平
 
-复用开漏输出：由片上外设控制，高电平为高阻态，低电平接VSS
+     这种模式下，高低电平均匀有较强的驱动能力（输出时，IO口直接链接内部电路的电源），所以推挽模式也叫强推输出模式，这种模式下，STM32对IO口有绝对控制权，决定IO口的输出
 
-复用推挽输出：由片上外设控制，高电平接VDD，低电平接VSS
+  2. 开漏输出模式
 
-#### 浮空/上拉/下拉输入
+     这种模式下，P-MOS无效，仅有N-MOS工作
 
+     数据寄存器为1时，下管断开，输出相当于断开，也就是高阻模式
 
+     数据寄存器为0时，下管导通，输出接到VSS，输出低电平
 
+     这种模式下，只有低电平有驱动能力，高电平没有驱动能力
 
+     这种模式可以作为通信协议的驱动方式，比如说I2C的通信引脚
 
-![image-20230124012425501](https://gitee.com/pu-heliang/photos/raw/master/img/202301240124542.png)
+     在多机通信的情况下，这种模式可以避免各个设备之间的相互干扰
 
-下拉输入时，上图中连接VSS的开关断开，连接VDD的闭合，当外部没有输入时。引脚默认为高电平
+     另外，开漏模式还可以用来输出5V的电平信号，比如在IO口外接一个上拉电阻到5V电源，当寄存器输出低电平的时候，内部的N-MOS直接接VSS，当输出高电平时，由外部上拉电阻拉高至5V，这样可以输出5V电平信号，兼容5V设备
 
+  3. 关闭
 
+     当引脚配置为输入模式的时候，两个MOS管都无效，输出关闭，端口电平由外部信号来控制
 
-### GPIO配置步骤
+#### GPIO工作模式列表
+
+| 模式名称 | 性质 | 特征 |
+| :------: | :--: | :--: |
+|浮空输入	|数字输入	|可读取引脚电平，若引脚悬空，则电平不确定|
+|上拉输入	|数字输入	|可读取引脚电平，内部连接上拉电阻，悬空时默认高电平|
+|下拉输入	|数字输入	|可读取引脚电平，内部连接下拉电阻，悬空时默认低电平|
+|模拟输入	|模拟输入	|GPIO无效，引脚直接接入内部ADC|
+|开漏输出	|数字输出	|可输出引脚电平，高电平为高阻态，低电平接VSS|
+|推挽输出	|数字输出	|可输出引脚电平，高电平接VDD，低电平接VSS|
+|复用开漏输出|	数字输出	|由片上外设控制，高电平为高阻态，低电平接VSS|
+|复用推挽输出	|数字输出	|由片上外设控制，高电平接VDD，低电平接VSS|
+
+注意一下模拟输入，这个可以说是ADC模数转换器的专属配置了，这里输出断开，施密特触发器无效，相当于只剩下一根线，也就是从引脚直接接入片上外设也就是ADC
+
+#### GPIO使用注意事项
+
+下面两张图是使用GPIO点亮发光二极管的不同方式，第一张是低电平驱动，第二张是高电平驱动
+
+限流电阻的左右：可以限制电路防止二极管烧毁，同时可以调节亮度
+
+![image-20230410163815402](/home/robot/下载/32/img/image-20230410163815402.png)
+
+![image-20230410163831363](/home/robot/下载/32/img/image-20230410163831363.png)
+
+两种驱动方式取决于GPIO的驱动能力，但是在单片机里面趋向于第一张接法，因为很多单片机采用了高电平弱驱动，低电平强驱动的规则
+
+但是注意一下，GPIO的驱动能力并不是很强，哪怕是推挽输出模式下，所以对于某些功率较大的元件，必须使用单独的驱动模块（如三极管），下图就是一个使用三极管驱动蜂鸣器的电路
+
+![image-20230410164414499](/home/robot/下载/32/img/image-20230410164414499.png)
+
+### GPIO配置
+
+我们清晰了解了GPIO的原理与结构，那么我们应该怎么对其进行配置来让其工作呢？我们首先来完成点亮LED
 
 #### 步骤：
 
 1. 第一步，使用RCC开启GPIO的时钟
 
+   我们都知道，在数电里面逻辑电路很多都需要时钟信号的驱动才可以工作，所以我们想让GPIO开始工作就需要给GPIO模块输入时钟信号，也称为时钟使能
+
 2. 第二步，使用GPIO_Init()函数初始化GPIO
 
 3. 第三步，使用输出或者输入的函数控制GPIO口
 
-#### 常用的RCC开启始终函数
+#### 时钟使能函数
+
+在原视频中，在项目下的Library文件夹中，有一个stm32f10x_rcc.h文件，顾名思义，这个文件就是stm32f10x系列的rcc头文件，其中我们可以看到有三个函数，其作用就是时钟使能
 
 ```c
 void RCC_AHBPeriphClockCmd(uint32_t RCC_AHBPeriph,FunctionalState NewState);
@@ -131,7 +196,11 @@ void RCC_APB2PeriphClockCmd(uint32_t RCC_APB2Periph,FunctionalState NewState);
 void RCC_APB1PeriphClockCmd(uint32_t RCC_APB1Periph,FunctionalState NewState);
 ```
 
+三个函数分别是RCC中AHB、APB1和APB2的外设时钟控制，两个参数的作用是
+
 参数1：选择外设，参数2：使能或者失能
+
+当我们编译项目之后，可以右键查看函数定义和介绍，我们发现，我们想使用一个GPIO外设（假定这里对GPIOA进行使能），那么第一个参数就使用RCC_APB2Periph_GPIOA，第二个参数选择ENABLE或者DISABLE，这些都是预定义好的变量
 
 #### 常用的GPIO函数
 
@@ -141,6 +210,8 @@ void RCC_APB1PeriphClockCmd(uint32_t RCC_APB1Periph,FunctionalState NewState);
 void GPIO_DeInit(GPIO_TypeDef* GPIOx);
 ```
 
+调用这个函数之后，所指定的GPIO外设会被复位（也就是初始化或者恢复出厂设置）
+
 ##### 复位AFIO外设函数
 
 ```c++
@@ -149,11 +220,81 @@ void GPIO_AFIODeInit(void);
 
 ##### 初始化GPIO口函数
 
-用结构体的参数来初始化GPIO口，先定义一个结构体变量，然后把再给结构体赋值，最后调用此函数，函数内部会自动读取结构体的值，然后自动把外设的各个参数配置好
+用结构体的参数来初始化GPIO口，先定义一个结构体变量，然后把再给结构体赋值（结构体的值代表配置GPIO端口的方式），最后调用此函数并且传入结构体，函数内部会自动读取结构体的值，然后自动把外设的各个参数配置好
 
 ```cpp
 void GPIO_Init(GPIO_TypeDef* GPIOx,GPIO_InitTypedef* GPIO_InitStruct);
 ```
+
+##### GPIO初始化结构体
+
+```c++
+GPIO_InitTypeDef GPIO_InitStructure;
+```
+
+声明一个GPIO初始化结构体对象
+
+```
+GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+```
+
+设置GPIO的工作模式（这是一些枚举定义，在stm32f10x_gpio.h中定义）
+
+| 变量名 | 含义 | 英文解释 |
+| :-: | :-: | :-: |
+| GPIO_Mode_AIN |模拟输入 | Analog IN |
+| GPIO_Mode_IN_FLOATING |浮空输入|In Floating|
+| GPIO_Mode_IPD |下拉输入|In Pull Down|
+| GPIO_Mode_IPU |上拉输入|In Pull Up|
+|GPIO_Mode_Out_OD|开漏输出|Out Open Drain|
+| GPIO_Mode_Out_PP |推挽输出|Out Push Pull|
+| GPIO_Mode_AF_OD |复用开漏|Atl Open Drain|
+| GPIO_Mode_AF_PP |复用推挽|Atl Push Pull|
+
+点灯使用推挽输出
+
+```cpp
+GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
+```
+
+同样我们可以在stm32f10x_gpio.h文件中找到引脚定义
+
+```cpp
+#define GPIO_Pin_0                 ((uint16_t)0x0001)  /*!< Pin 0 selected */
+#define GPIO_Pin_1                 ((uint16_t)0x0002)  /*!< Pin 1 selected */
+#define GPIO_Pin_2                 ((uint16_t)0x0004)  /*!< Pin 2 selected */
+#define GPIO_Pin_3                 ((uint16_t)0x0008)  /*!< Pin 3 selected */
+#define GPIO_Pin_4                 ((uint16_t)0x0010)  /*!< Pin 4 selected */
+#define GPIO_Pin_5                 ((uint16_t)0x0020)  /*!< Pin 5 selected */
+#define GPIO_Pin_6                 ((uint16_t)0x0040)  /*!< Pin 6 selected */
+#define GPIO_Pin_7                 ((uint16_t)0x0080)  /*!< Pin 7 selected */
+#define GPIO_Pin_8                 ((uint16_t)0x0100)  /*!< Pin 8 selected */
+#define GPIO_Pin_9                 ((uint16_t)0x0200)  /*!< Pin 9 selected */
+#define GPIO_Pin_10                ((uint16_t)0x0400)  /*!< Pin 10 selected */
+#define GPIO_Pin_11                ((uint16_t)0x0800)  /*!< Pin 11 selected */
+#define GPIO_Pin_12                ((uint16_t)0x1000)  /*!< Pin 12 selected */
+#define GPIO_Pin_13                ((uint16_t)0x2000)  /*!< Pin 13 selected */
+#define GPIO_Pin_14                ((uint16_t)0x4000)  /*!< Pin 14 selected */
+#define GPIO_Pin_15                ((uint16_t)0x8000)  /*!< Pin 15 selected */
+#define GPIO_Pin_All               ((uint16_t)0xFFFF)  /*!< All pins selected */
+```
+
+实际上，这些引脚定义就是设置了高电平的位置来进行引脚的初始化，学过数电的都知道，数字电路中表示数值的方式就是二进制的多位电平
+
+在原码表示下，二进制的十六位数就可以表示16个属性的状态，在这里正好对应一个GPIO外设的16个引脚，所以实际上的就是设置对应位置的电平，第$i$位电平是高电平，那么等于设置$i-1$号引脚完成初始化
+
+如果想设置多个引脚，那么就可以一次将多个电平置为高电平，不过注意一下，一个结构体对象想一次性设置一个GPIO外设的多个引脚，那么这些引脚的工作模式和执行速度是一样的，如果想差异化设置则需要使用不同结构体对象
+
+```cpp
+GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+GPIO_Init(GPIOA, &GPIO_InitStructure);
+```
+
+GPIO_Init函数的作用是读取结构体参数，进行一系列逻辑判断运算，最后写入GPIO配置寄存器
+
+至此，GPIO的配置就完成了，接下来就可以对其进行操作了
+
+
 
 ##### 给GPIO结构体变量赋一个默认值函数
 
@@ -163,11 +304,14 @@ void GPIO_StructInit(GPIO_InitTypedef* GPIO_InitTypedef);
 
 ##### GPIO的输出函数
 
-##### 把制定的端口设置为高电平:函数
+##### 把指定的端口设置为高电平
 
 ```c
 void GPIO_SetBits(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin);
+GPIO_SetBits(GPIOA,GPIO_Pin_0);
 ```
+
+这里将GPIOA的0号引脚设为高电平
 
 ##### 把指定的端口设置为低电平
 
@@ -175,11 +319,18 @@ void GPIO_SetBits(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin);
 void GPIO_ResetBits(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin);
 ```
 
+与GPIO_SetBits函数相同的用法
+
 ##### 对根据第三个参数的值来设置电平
 
 ```c
 void GPIO_WriteBit(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin,BitAction BitVal);
+//用法示例
+GPIO_WriteBit(GPIOA,GPIO_Pin_0,Bit_SET);
+GPIO_WriteBit(GPIOA,GPIO_Pin_0,Bit_RESET);
 ```
+
+对GPIO的0号引脚分别置高电平和低电平
 
 ##### 对GPIOx 16个端口同时进行写入操作：
 
@@ -222,7 +373,7 @@ uint16_t GPIO_ReadOutputData(GPIO_InitTypedef* GPIOx);
 ```c
 void LED_Init(void)
 {
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);//开启GPIO时钟
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);//开启GPIO时钟，这里是开启一个GPIO外设的时钟
 	
 	GPIO_InitTypeDef GPIO_InitStructure;//定义GPIO结构体
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;//推挽输出
@@ -281,7 +432,7 @@ void LED2_Turn(void)
 
 
 
-### 外部中断
+## 外部中断
 
 - 中断：在主程序运行过程中，出现了特定的中断触发条件（中断源），使得CPU暂停当前正在运行的程序，转而去处理中断程序，处理完成后又返回原来被暂停的位置继续运行
 - 中断优先级：当有多个中断源同时申请中断时，CPU会根据中断源的轻重缓急进行裁决，优先响应更加紧急的中断源

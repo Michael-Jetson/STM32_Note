@@ -111,7 +111,7 @@ GPIO外设的命名是GPIO+A/B/C这种，然后一个GPIO外设有16个引脚，
 
 - 有三种输出方式：推挽输出，开漏输出，关闭
 
-  1. 推挽输出![image-20230410143846371](/home/robot/下载/32/img/image-20230410143846371.png)
+  1. 推挽输出![image-20230410143846371](https://github.com/Michael-Jetson/STM32_Note/blob/main/img/image-20230410143846371.png?raw=true)
 
      这种模式下，P-MOS和N-MOS均有效
 
@@ -162,15 +162,15 @@ GPIO外设的命名是GPIO+A/B/C这种，然后一个GPIO外设有16个引脚，
 
 限流电阻的左右：可以限制电路防止二极管烧毁，同时可以调节亮度
 
-![image-20230410163815402](/home/robot/下载/32/img/image-20230410163815402.png)
+![image-20230410163815402](https://github.com/Michael-Jetson/STM32_Note/blob/main/img/image-20230410163815402.png?raw=true)
 
-![image-20230410163831363](/home/robot/下载/32/img/image-20230410163831363.png)
+![image-20230410163831363](https://github.com/Michael-Jetson/STM32_Note/blob/main/img/image-20230410163831363.png?raw=true)
 
 两种驱动方式取决于GPIO的驱动能力，但是在单片机里面趋向于第一张接法，因为很多单片机采用了高电平弱驱动，低电平强驱动的规则
 
 但是注意一下，GPIO的驱动能力并不是很强，哪怕是推挽输出模式下，所以对于某些功率较大的元件，必须使用单独的驱动模块（如三极管），下图就是一个使用三极管驱动蜂鸣器的电路
 
-![image-20230410164414499](/home/robot/下载/32/img/image-20230410164414499.png)
+![image-20230410164414499](https://github.com/Michael-Jetson/STM32_Note/blob/main/img/image-20230410164414499.png?raw=true)
 
 ### GPIO配置
 

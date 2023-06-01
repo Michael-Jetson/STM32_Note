@@ -386,25 +386,31 @@ void GPIO_Write(GPIO_InitTypedef* GPIOx,uint16_t PortVal);
 
 当然这个模块还支持数字输出，是通过一个电压比较器实现的
 
-### 读取输入数据寄存器某个端口的输入值，返回值是高低电平函数
+### 读取输入数据寄存器某个引脚的输入值，返回值是高低电平函数
 
 ```c
 uint8_t GPIO_ReadInputDataBit(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin);
 ```
 
-### 读取GPIO的每一位的值，返回值是16位的数据,每一位代表一个端口值
+指定一个端口读取，返回值是uint8_t，代表这个端口的高低电平
+
+### 读取GPIO端口的值
 
 ```c
 uint16_t GPIO_ReadInputData(GPIO_InitTypedef* GPIOx);
 ```
 
-#### 读取输出数据寄存器的某一位
+读取某一个端口的值，返回值是16位的数据,每一位代表一个端口值
+
+### 读取输出数据寄存器的某一位
 
 ```c
 uint8_t GPIO_ReadOutputDataBit(GPIO_InitTypedef* GPIOx,uint16_t GPIO_Pin);
 ```
 
-#### 读取整个输出寄存器
+一般用于输出模式下，查看输出数据
+
+### 读取整个输出寄存器
 
 ```c
 uint16_t GPIO_ReadOutputData(GPIO_InitTypedef* GPIOx);
@@ -480,44 +486,104 @@ void LED2_Turn(void)
 
 # 外部中断
 
-- 中断：在主程序运行过程中，出现了特定的中断触发条件（中断源），使得CPU暂停当前正在运行的程序，转而去处理中断程序，处理完成后又返回原来被暂停的位置继续运行
+## 中断概念
+
+- 中断：在主程序运行过程中，出现了特定的中断触发条件（中断源），使得CPU暂停当前正在运行的程序（会保护现场），转而去处理中断程序（在一个子函数里面），处理完成后又返回原来被暂停的位置继续运行
+
+  ![41](.\img\41.png)
+
 - 中断优先级：当有多个中断源同时申请中断时，CPU会根据中断源的轻重缓急进行裁决，优先响应更加紧急的中断源
+
+- 中断资源有很多，首先就是内核中断，比如说复位中断（复位按键按下的时候会中断），这些中断的优先级是最高的；然后就是非内核中断，比如说看门狗中断，可以监测程序运行状态，如果程序卡死了，就会申请中断，就可以进入中断进行程序检查，每个中断都有一个地址，这是因为中断函数的地址是编译器分配的，是不固定的，但是中断跳转必须是一个固定地址，因此需要在内存中定义一个地址的列表，中断发生后，就跳转到这个固定位置，然后再由编译器跳转到中断函数位置，这样就可以跳转到任意位置的中断函数了，这个地址列表也叫中断向量表，相当于中断跳转的跳板
+
+## 中断结构
+
+### NVIC结构
+
+NVIC有很多输入口，n个输入的中断通道，这是因为一搞外设可能同时占用多个中断通道，所以这里有n个线
+
+但是NVIC只有一个输出口，会根据中断优先级去分配中断的先后顺序，然后通过一个输出口告诉CPU有哪个中断需要处理了，至于先后顺序分配的任务无需CPU知道，CPU就相当于医生，NVIC就相当于助手，分配病人看病顺序
+
+![43](.\img\43.png)
+
 - 中断嵌套：当一个中断程序正在运行时，又有新的更高优先级的中断源申请中断，CPU再次暂停当前的中断程序，转而去处理新的中断程序，处理完后依次进行返回
-- NVIC：NVIC的中断优先级由优先级寄存器的4位（0~15）决定，这4位可以进行切分，分为高n位的抢占优先级和低4-n位的响应优先级
+- NVIC：用来分配中断优先级和管理中断的（这是因为中断线路非常多，如果CPU直接接入会非常麻烦，所以需要这样一个小助手帮忙），是内核外设，NVIC的中断优先级由优先级寄存器的4位（0~15）决定，这4位可以进行切分，分为高n位的抢占优先级和低4-n位的响应优先级
 - 抢占优先级高的可以进行中断嵌套，响应优先级高的可以进行优先排队，抢占优先级和响应优先级均相同的按中断号排队
 
-- EXTI：（Extern Interrupt）外部中断
+### EXTI：（Extern Interrupt）外部中断
+
 - EXTI可以检测指定GPIO口的电平信号，当其指定的GPIO口产生电平变化时，EXTI将立即向NVIC发出中断申请，经过NVIC裁决后即可中断CPU主程序，使CPU执行EXTI对应的中断程序
-- 支持的触发方式：上升沿/下降沿/双边沿/软件触发
-- 支持的GPIO口：所有GPIO口，但相同的Pin不能同时触发中断
-- 通道数：16个GPIO_Pin，外加PVD输出、RTC闹钟、USB唤醒、以太网唤醒
-- 触发响应方式：中断响应/事件响应
+- 支持的触发方式：上升沿/下降沿/双边沿（上升沿下降沿都可以触发）/软件触发（通过程序中的指令触发）
+- 支持的GPIO口：所有GPIO口，但不同端口的相同的Pin不能同时触发中断，比如说PA1和PB1不能同时触发
+- 通道数：16个GPIO_Pin（主要功能），外加PVD输出、RTC闹钟、USB唤醒、以太网唤醒
+- 触发响应方式：中断响应/事件响应（这个是用来触发其他外设的，不会流向CPU，属于外设之间的联合工作）
 
 ![image-20221224115729670](https://gitee.com/pu-heliang/photos/raw/master/img/202301032043708.png)
 
-AFIO选择中断引脚，外部中断的9-5,15-10会触发同一个中断函数，再根据标志位来区分到底是哪个中断进来的
+左边是一系列端口，每个端口有16根线，AFIO会选择哪些引脚可以连接到输出的16根引脚，这就是为什么不同端口的相同引脚不能同时用作中断；这些加上四个外设信号，就祖传了EXIT的20个输入信号，然后经过EXIT处理之后，有分为两路，一组接入NVIC触发中断，但是ST公司精简了中断通道，把其中的9-5和15-10给分别分到一个通道里面，它们会分别触发一个中断函数，然后还有一路输出到其他外设作为事件响应
 
-配置数据选择器，只有一个Pin接到EXTI
+### AFIO选择中断引脚
+
+AFIO主要用于引脚复用功能的选择和重定义，在STM32中AFIO主要完成两个任务：复用功能引脚重映射、中断引脚选择
+
+外部中断的9-5,15-10会触发同一个中断函数，再根据标志位来区分到底是哪个中断进来的；配置数据选择器，只有一个Pin接到EXTI
+
+下图是AFIO选择中断引脚的结构图，本质上就是一系列数据选择器
 
 ![image-20230103203938222](https://gitee.com/pu-heliang/photos/raw/master/img/202301032039837.png)
 
-在STM32中AFIO主要完成两个任务：复用功能引脚重映射、中断引脚选择
+
 
 或、与、非门
 
 ![image-20221224120857813](https://gitee.com/pu-heliang/photos/raw/master/img/202301032044678.png)
 
+### EXTI内部结构
+
+接下来我们看EXTI内部结构，图的右下角是信号输入，然后先经过一个边沿检测电路，这里可以选择触发方式
+
+![图片1](.\img\图片1.png)
+
+然后，信号再经过一个或门，这里输入信号与软件中断事件寄存器一起接入，这也就是软件触发方式的来源
+
+当触发信号通过或门之后，便分为两路，上一路是触发中断，下一路是触发事件的；上一路首先会置一个请求挂起寄存器，相当于一个中断标志位，可以通过读取这个请求挂起寄存器来判断是哪个通道触发的中断，如果中断挂起寄存器置1，信号就会继续向左走，和中断屏蔽寄存器共同进入一个与门（相当于一个开关，如果屏蔽寄存器给0，那么就相当于屏蔽中断，给1就是允许中断），然后输出信号流向NVIC中断控制器；下一路和一个事件屏蔽寄存器一起输入一个与门，然后通过一个脉冲发生器，这个脉冲发生器就是给一个电平脉冲，用来触发其他外设的动作
+
+## 应用
+
+中断适合这种信号：一般情况下没有需要处理的事情，但是一旦需要处理，需要非常迅速的响应和处理，比如说编码器
+
 ## EXTI配置步骤
 
-1. 第一步，配置RCC，把设计到的外设时钟都打开
+从结构图看，我们只需要把从端口到NVIC的信号电路打通就可以
+
+1. 第一步，配置RCC，把涉及到的外设的时钟都打开
 2. 第二步，配置GPIO，选择端口为输入模式
 3. 第三步，配置AFIO，选择使用的一路GPIO，连接到后面的EXTI
-4. 第四步，配置EXTI，选择边沿触发方式，选择触发响应方式
+4. 第四步，配置EXTI，选择边沿触发方式，选择触发响应方式（中断响应或者事件响应）
 5. 第五步，配置NVIC，给中断选择一个合适的优先级
+
+这样CPU就可以接受到中断信号了
 
 EXTI和NVIC时钟默认是打开的，NVIC是内核的外设，内核的外设都不需要开启时钟，RCC管的都是内核外的外设
 
-### 复位AFIO外设
+首先是时钟使能
+
+```c++
+RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOx,ENABLE);
+RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,ENABLE);
+```
+
+如果不确定这个外设是接在哪个总线上的，就可以转到总线时钟控制函数里面参数列表就清楚了
+
+至于EXIT和NVIC的时钟是一直开启的，不需要单独打开
+
+然后就是配置GPIO和AFIO
+
+### 各种函数
+
+#### AFIO函数，位于GPIO的头文件内
+
+##### 复位AFIO外设，会清除AFIO的配置
 
 ```c
 void GPIO_AFIODeInit(void);
@@ -525,7 +591,7 @@ void GPIO_AFIODeInit(void);
 
 ##### 锁定GPIO配置函数
 
-##### 锁定引脚的配置，防止意外更改
+锁定引脚的配置，防止意外更改
 
 ```c
 void GPIO_PinLockConfig(GPIO_TypeDef* GPIOx,uint16_t GPIO_Pin);
@@ -544,13 +610,19 @@ void GPIO_EventOutputCmd(FunctionalState NewState);
 void GPIO_PinRemapConfig(uint32_t GPIO_Remap,FunctionalState NewState);
 ```
 
+第一个参数选择重映射的方式，第二个参数是新的状态
+
 ##### 配置AFIO的数据选择器
 
-选择想使用的中断引脚函数
+选择想使用的中断引脚，虽然看起来是GPIO的函数，实际上操作的是AFIO
 
 ```c
 void GPIO_EXTILineConfig(uint8_t GPIO_PortSource,uint8_t GPIO_PinSource);
 ```
+
+第一个参数是选择某个GPIO外设作为中断源，可以是GPIO_PortSourceGPIOx，x是A-G，第二个参数是指定配置的外部中断线，可以是GPIO_PinSourcex，其中x可以是0-15
+
+#### EXIT函数，在EXIT头文件内
 
 ##### 恢复上电默认的状态函数
 
@@ -564,15 +636,34 @@ void EXTI_DeInit(void);
 void EXTI_Init(EXTI_InitTypedef* EXTI_InitStruct);
 ```
 
+用来初始化EXIT
+
+```c++
+EXTI_InitTypeDef EXTI_InitStructure;//初始化结构体
+EXTI_InitStructure.EXTI_Line=EXTI_Line1|EXTI_Line2;
+//指定要配置的中断线，这个可以是中断线的任意组合，类似于GPIO引脚
+EXTI_InitStructure.EXTI_LineCmd=ENABLE;
+//中断线的新状态，就是是否启用，可以选择ENABLE和DISABLE
+EXTI_InitStructure.EXTI_Mode=;
+//中断的工作模式，可以选择一个枚举变量，或者说在中断模式（EXTI_Mode_Interrupt)和事件模式(EXTI_Mode_Event)中选择
+EXTI_InitStructure.EXTI_Trigger=;
+//选择边沿触发方式，有EXTI_Trigger_Rising,EXTI_Trigger_Falling,EXTI_Trigger_Rising_Falling三种，分别是上升沿，下降沿和上升沿+下降沿
+EXTI_Init(&EXTI_InitStructure)//取地址的方式传值
+```
+
+
+
 ##### 给传入的结构体参数赋一个默认值函数
 
 ```c
 void EXTI_StructInit(EXTI_InitTypedef* EXTI_InitStruct);
 ```
 
+上面三个初始化函数在各个外设中都是常见的
+
 ##### 软件触发外部中断函数
 
-参数给一个中断线，就能软件触发一次这个外部中断函数
+参数给一个指定的中断线，就能软件触发一次这个外部中断函数
 
 ```c
 void EXTI_GenerateSWInterrupt(uint32_t EXTI_Line);
@@ -588,11 +679,15 @@ void EXTI_GenerateSWInterrupt(uint32_t EXTI_Line);
 FlagStatus EXTI_GetFlagStatus(uint32_t EXTI_Line);
 ```
 
+可以查看指定的标志位是否被置1了
+
 ##### 对置1的标志位进行清除函数
 
 ```c
 void EXTI_ClearFlag(uint32_t EXTI_Line);
 ```
+
+这两个函数用于在主函数中查看和清楚标志位
 
 ##### 在中断函数中获取标志位函数
 
@@ -606,13 +701,17 @@ ITStatus EXTI_GetITStatus(uint32_t EXTI_Line);
 void EXTI_ClearITPendingBit(uint32_t EXTI_Line);
 ```
 
+这两个函数用于在中断函数中查看和清除标志位，不过只可以读取与中断有关的标志位，并且对中断是否被允许做出了判断，上面两个函数只是一般的读写标志位，没有额外处理，不论标志位能不能触发中断都可以进行读取，所以适合在主程序中进行
+
+#### NVIC
+
 ##### 中断分组函数
 
 ```c
 void NVIC_PriorityGroupConfig(uint32_t NVIC_PriorityGroup);
 ```
 
-##### 根据结构体里面的参数初始化NVIC函数
+###### 根据结构体里面的参数初始化NVIC函数
 
 ```c
 void NVIC_Init(NVIC_InitTypedef* NVIC_InitStruct);
@@ -720,7 +819,7 @@ void EXTI1_IRQHandler(void)//线路1中断函数
 
 
 
-### 定时器
+# 定时器
 
 - TIM（Timer）定时器
 - 定时器可以对输入的时钟进行计数，并在计数值达到设定值时触发中断
